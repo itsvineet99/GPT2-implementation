@@ -2,10 +2,6 @@ import tiktoken
 import torch
 from torch.utils.data import Dataset, DataLoader
 
-# data_path = "data/the-verdict.txt"
-# with open(data_path, "r") as file:
-#     raw_text = file.read()
-
 # customized dataset class
 class GPTDataset(Dataset):
     def __init__(self, txt, tokenizer, context_lim, stride):

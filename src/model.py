@@ -6,8 +6,8 @@ class LayerNorm(nn.Module):
         super().__init__()
 
         self.eps = 1e-5
-        self.scale = nn.Linear(torch.ones(emb_dim))
-        self.shift = nn.Linear(torch.zeros(emb_dim))
+        self.scale = nn.Parameter(torch.ones(emb_dim))
+        self.shift = nn.Parameter(torch.zeros(emb_dim))
 
     def forward(self, x):
         mean = torch.mean(x, dim=-1, keepdim=True)
@@ -136,7 +136,7 @@ class GPTModel(nn.Module):
         self.emb_drop = nn.Dropout(cfg.drop_rate)
 
         self.trf_blocks = nn.Sequential(
-            *[TransformerBlock(cfg) for _ in cfg.n_layers]
+            *[TransformerBlock(cfg) for _ in range(cfg.n_layers)]
         )
 
         self.final_norm = LayerNorm(cfg.emb_dim)
