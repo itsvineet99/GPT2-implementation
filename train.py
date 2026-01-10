@@ -4,7 +4,9 @@ import tiktoken
 from src import (GPTConfig, GPTModel, 
                  create_dataloader, calc_loss_loader,
                  calc_loss_batch, evaluate_model,
-                 generate_and_print_sample)
+                 generate_and_print_sample, plot_losses,
+                 generate, text_to_token_ids,
+                 token_ids_to_text)
 
 
 # training script
@@ -84,7 +86,8 @@ def main():
 
     # initialize model
     torch.manual_seed(53)
-    model = GPTModel(GPTConfig)
+    cfg = GPTConfig().GPT_124M()
+    model = GPTModel(cfg)
     model.to(device)
 
     #initialize optimizer and tokenizer
@@ -94,7 +97,7 @@ def main():
     )
     tokenizer = tiktoken.get_encoding('gpt2')
 
-    num_epoch = 30
+    num_epoch = 15
 
     start_time = time.perf_counter()
 
@@ -107,7 +110,29 @@ def main():
     end_time = time.perf_counter()
     total_time = (end_time - start_time) / 60
 
-    print(f"total time required to train thsi model: {total_time:.2f} minutes.")
+    print(f"total time required to train thsi model: {total_time:.2f} minutes.\n")
+
+    # plotting losses
+    epochs_tensor = torch.linspace(0, num_epoch, len(train_losses))
+    plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+
+    # put model on eval mode before sampling
+    model.eval()
+    
+    # sampling to see how good model performance is
+    torch.manual_seed(53)
+    token_ids = generate(
+        model=model,
+        idx=text_to_token_ids("Every effort moves you", tokenizer).to(device),
+        context_size=cfg.context_length,
+        max_new_tokens=20,
+        top_k=50,
+        temperature=1.2,
+        eos_id=50257
+        )
+
+    print("Output text (by fully trained model):\n",
+          token_ids_to_text(token_ids, tokenizer))
 
 if __name__ == "__main__":
     main()

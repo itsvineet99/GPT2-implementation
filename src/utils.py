@@ -1,4 +1,6 @@
 import torch
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 # model generates text, given input ids
 def generate_simple_text(idx, model, max_new_tokens, context_size):
@@ -78,3 +80,52 @@ def generate_and_print_sample(start_context, model,
     decoded_text = token_ids_to_text(token_ids, tokenizer)
     print(decoded_text.replace("\n", " "))
     model.train()
+
+# plotting losses 
+def plot_losses(epochs_seen, tokens_seen, train_losses, val_losses):
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+    ax1.plot(epochs_seen, train_losses, label="Training loss")
+    ax1.plot(
+        epochs_seen, val_losses, linestyle="-.", label="Validation loss"
+    )
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel("Loss")
+    ax1.legend(loc="upper right")
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax2 = ax1.twiny() #1
+    ax2.plot(tokens_seen, train_losses, alpha=0) #2
+    ax2.set_xlabel("Tokens seen")
+    fig.tight_layout()
+    plt.show()
+
+# sampling function with some sampling techniques
+def generate(model, idx, context_size, max_new_tokens, 
+             top_k=None, temperature=0.0, eos_id=None):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]
+        with torch.no_grad():
+            logits = model(idx_cond)
+        logits = logits[:, -1, :]
+
+        if top_k is not None:
+            top_logits, _ = torch.topk(logits, top_k)
+            min_logits = top_logits[:, -1]
+            logits = torch.where(
+                logits < min_logits,
+                torch.tensor(float("-inf")).to(logits.device),
+                logits
+            )
+
+        if temperature > 0.0:
+            logits = logits/temperature
+            probas = torch.softmax(logits, dim=-1)
+            next_idx = torch.multinomial(probas, num_samples=1)
+        else:
+            next_idx = torch.argmax(logits, dim=-1, keepdim=True)
+
+        if next_idx == eos_id:
+            break  
+
+        idx = torch.cat((idx, next_idx), dim=1)
+    
+    return idx
