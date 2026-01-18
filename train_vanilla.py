@@ -1,7 +1,7 @@
 import torch
 import time
 import tiktoken
-from src import (GPTConfig, GPTModel, 
+from src import (GPTConfig, GPTModel, GPTDatasetV1, GPTDatasetV2,
                  create_dataloader, calc_loss_loader,
                  calc_loss_batch, evaluate_model,
                  generate_and_print_sample, plot_losses,
@@ -66,6 +66,7 @@ def main():
     # creating dataloaders
     train_dataloader = create_dataloader(
         txt=train_data,
+        GPTDataset=GPTDatasetV1,
         context_lim=256,
         stride=256,
         batch_size=2,
@@ -76,6 +77,7 @@ def main():
 
     val_dataloader = create_dataloader(
         txt=val_data,
+        GPTDataset=GPTDatasetV1,
         context_lim=256,
         stride=256,
         batch_size=2,

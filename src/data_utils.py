@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 
 # customized dataset class
-class GPTDataset(Dataset):
+class GPTDatasetV1(Dataset):
     def __init__(self, txt, tokenizer, context_lim, stride):
         super().__init__()
 
@@ -23,9 +23,40 @@ class GPTDataset(Dataset):
     
     def __getitem__(self, index):
         return self.input_ids[index], self.output_ids[index]
+    
+# new and improved version of of dataset class
+
+class GPTDatasetV2(Dataset):
+    def __init__(self, txt, tokenizer, context_len, stride):
+        super().__init__()
+
+        self.input_ids = []
+        self.output_ids = []
+        self.context_len = context_len
+        self.stride = stride
+
+        token_ids = tokenizer.encode(txt, allowed_special={'<|endoftext|>'})
+        self.data = torch.tensor(token_ids, dtype=torch.long)
+        print(f"Loaded {len(self.data)} tokens.")
+
+    def __len__(self):
+        return (len(self.data) - self.context_len) // self.stride
+
+    def __getitem__(self, idx):
+        start_idx = idx * self.stride
+
+        # Slice the tensor on the fly (Zero RAM overhead)
+        # Input:  0 -> 1024
+        # Target: 1 -> 1025
+        chunk = self.data[start_idx : start_idx + self.context_len + 1]
+
+        x = chunk[:-1]
+        y = chunk[1:]
+
+        return x, y
 
 # function to create dataloader 
-def create_dataloader(txt, context_lim=256, stride=128, 
+def create_dataloader(txt, GPTDataset, context_lim=256, stride=128, 
                       batch_size=2, shuffle=True,
                       drop_last=True, num_workers=0):
     tokenizer = tiktoken.get_encoding("gpt2")

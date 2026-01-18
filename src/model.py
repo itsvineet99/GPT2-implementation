@@ -33,6 +33,7 @@ class MultiHeadAttention(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
         self.out_proj = nn.Linear(d_out, d_out)
+        self.out_proj.NANOGPT_SCALE_INIT = 1 # for our custom weight initialization
         self.register_buffer(
             'mask',
             torch.triu(torch.ones(context_length, context_length), diagonal=1)
@@ -90,6 +91,8 @@ class FeedForward(nn.Module):
             GELU(),
             nn.Linear(4*cfg.emb_dim, cfg.emb_dim)
         )
+        # used for our custom weight initialization 
+        self.layers[2].NANOGPT_SCALE_INIT = 1
 
     def forward(self, x):
         return self.layers(x)
@@ -141,6 +144,59 @@ class GPTModel(nn.Module):
 
         self.final_norm = LayerNorm(cfg.emb_dim)
         self.out_head = nn.Linear(cfg.emb_dim, cfg.vocab_size)
+
+    def forward(self, in_idx):
+        batch_size, seq_len = in_idx.shape
+
+        tok_emb = self.tok_emb(in_idx)
+        pos_emb = self.pos_emb(
+            torch.arange(seq_len, device=in_idx.device)
+        )
+        x = tok_emb + pos_emb
+        x = self.emb_drop(x)
+        x = self.trf_blocks(x)
+        x = self.final_norm(x)
+
+        logits = self.out_head(x)
+
+        return logits
+
+
+class GPTModelWI(nn.Module):
+    def __init__(self, cfg):
+        super().__init__()
+
+        self.config = cfg
+        self.tok_emb = nn.Embedding(cfg.vocab_size, cfg.emb_dim)
+        self.pos_emb = nn.Embedding(cfg.context_length, cfg.emb_dim)
+        self.emb_drop = nn.Dropout(cfg.drop_rate)
+
+        self.trf_blocks = nn.Sequential(
+            *[TransformerBlock(cfg) for _ in range(cfg.n_layers)]
+        )
+
+        self.final_norm = LayerNorm(cfg.emb_dim)
+        self.out_head = nn.Linear(cfg.emb_dim, cfg.vocab_size)
+
+        self.apply(self._init_weights)
+    
+    # custom weight initialization function 
+    def _init_weights(self, module):
+        if isinstance(module, nn.Linear):
+            std = 0.02
+            
+            if hasattr(module, 'NANOGPT_SCALE_INIT'):
+                # We use (2 * n_layers) because there are 2 residual streams per block
+                # (Attention and FeedForward)
+                std *= (2 * self.config.n_layers) ** -0.5
+
+            torch.nn.init.normal_(module.weight, mean=0.0, std=std)
+
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
     def forward(self, in_idx):
         batch_size, seq_len = in_idx.shape

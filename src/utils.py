@@ -32,6 +32,8 @@ def calc_loss_batch(input_batch, target_batch, model, device):
     target_batch = target_batch.to(device)
     logits = model(input_batch)
     loss = torch.nn.functional.cross_entropy(
+        # This effectively treats every single token in the entire 
+        # batch as an independent classification problem.
         logits.flatten(0,1), target_batch.flatten()
     )
     return loss
@@ -44,7 +46,9 @@ def calc_loss_loader(dataloader, model, device, num_batches=None):
         num_batches = len(dataloader)
     else:
         num_batches = min(num_batches, len(dataloader))
-
+    
+    # working of for loop on dataloader 
+    # link : https://x.com/x0_vineet/status/2012765474346418668?s=20
     for i, (input_batch, target_batch) in enumerate(dataloader):
         if i < num_batches:
             loss = calc_loss_batch(input_batch, target_batch, model, device)
