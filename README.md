@@ -10,4 +10,8 @@ loss graph and some visuals from training:
 
 ![loss.png](https://i.ibb.co/cSzJD7kF/Screenshot-2026-03-02-at-11-14-10-PM.png)
 
+epoch 1:
 ![loss_2.png](https://i.ibb.co/tT6vR39C/Screenshot-2026-03-02-at-11-12-45-PM.png)
+
+epoch 2:
+![epoch_1.png](https://i.ibb.co/9krtsK3K/image.png)
